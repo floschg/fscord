@@ -1,0 +1,22 @@
+#ifndef STRING_HANDLES_H
+#define STRING_HANDLES_H
+
+#include <basic/arena.h>
+#include <basic/string32.h>
+
+typedef enum {
+    SH_EMPTY,
+    SH_LOGIN_USERNAME_HINT,
+    SH_LOGIN_SERVERNAME_HINT,
+    SH_LOGIN_WARNING_USERNAME_INVALID,
+    SH_LOGIN_WARNING_SERVERNAME_INVALID,
+    SH_LOGIN_WARNING_CONNECTING,
+    SH_LOGIN_WARNING_COULD_NOT_CONNECT,
+    SH_LOGIN_WARNING_CONNECTION_LOST,
+    SH_COUNT
+} String32Handle;
+
+void string32_handles_load_language(void);
+String32* string32_value(String32Handle handle);
+
+#endif // STRING_HANDLES_H

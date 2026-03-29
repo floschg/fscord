@@ -1,0 +1,4 @@
+.cache/
+build/
+data/fscord/fscord
+data/fscord_server/fscord_server

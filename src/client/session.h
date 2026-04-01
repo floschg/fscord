@@ -5,8 +5,8 @@
 #include <basic/string32.h>
 #include <basic/time.h>
 #include <os/os.h>
+#include <basic/ring_alloc.h>
 
-struct Fscord;
 
 typedef struct {
     String32Buffer *name;
@@ -23,20 +23,22 @@ typedef struct {
     size_t max_user_count;
     User *users;
 
-    size_t message0;
-    size_t cur_message_count;
-    size_t max_message_count;
-    ChatMessage *messages;
+    ChatMessage *chat_messages;
+    RingAlloc chat_message_alloc;
 
     String32Buffer *prompt;
 } Session;
 
-Session *session_create(Arena *arena, struct Fscord *fscord);
+
+void session_init(Session *session);
 void session_reset(Session *session);
-void session_process_event(Session *session, OSEvent *event);
-void session_draw(Session *session);
-void session_add_chat_message(Session *session, Time creation_time, String32 *sender_name, String32 *content);
+
 void session_add_user(Session *session, String32 *username);
 void session_rm_user(Session *session, String32 *username);
+
+void session_add_chat_message(Session *session, Time creation_time, String32 *sender_name, String32 *content);
+
+void session_process_event(Session *session, OSEvent *event);
+void session_draw(Session *session);
 
 #endif // SESSION_H

@@ -12,6 +12,9 @@
 #include <string.h>
 
 
+Fscord g_fscord;
+
+
 static b32
 fscord_update(Fscord *fscord)
 {
@@ -19,7 +22,7 @@ fscord_update(Fscord *fscord)
 
 
     Login *login = fscord->login;
-    Session *session = fscord->session;
+    Session *session = &fscord->session;
 
 
     // handle network events
@@ -127,11 +130,11 @@ fscord_init(Fscord *fscord)
     fscord->sound_user_disconnected = sound_load(SOUND_USER_DISCONNECTED);
 
     os_net_secure_streams_init(&fscord->perma_arena, 1);
-    server_connection_create(&fscord->perma_arena, fscord);
+    server_connection_create(&fscord->perma_arena);
 
     fscord->is_logged_in = false;
     fscord->login = login_create(&fscord->perma_arena, fscord);
-    fscord->session = session_create(&fscord->perma_arena, fscord);
+    session_init(&fscord->session);
 
     return true;
 }
@@ -140,16 +143,15 @@ fscord_init(Fscord *fscord)
 static void
 fscord_main(void)
 {
-    Fscord fscord;
-    if (!fscord_init(&fscord)) {
+    if (!fscord_init(&g_fscord)) {
         return;
     }
 
     b32 running = true;
     while (running) {
-        running = fscord_update(&fscord);
+        running = fscord_update(&g_fscord);
 
-        os_window_swap_buffers(fscord.window, fscord.offscreen_buffer);
+        os_window_swap_buffers(g_fscord.window, g_fscord.offscreen_buffer);
         //os_sound_player_play(fscord->sound_player);
     }
 }

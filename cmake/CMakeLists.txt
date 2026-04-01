@@ -49,6 +49,7 @@ target_sources(fscord PUBLIC
     ${FSCORD_SRC_DIR}/basic/arena.c
     ${FSCORD_SRC_DIR}/basic/math.c
     ${FSCORD_SRC_DIR}/basic/string32.c
+    ${FSCORD_SRC_DIR}/basic/ring_alloc.c
     ${FSCORD_SRC_DIR}/client/draw.c
     ${FSCORD_SRC_DIR}/client/sound.c
     ${FSCORD_SRC_DIR}/client/font.c

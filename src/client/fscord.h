@@ -27,7 +27,9 @@ typedef struct Fscord {
 
     b32 is_logged_in;
     Login *login;
-    Session *session;
+    Session session;
 } Fscord;
+
+extern Fscord g_fscord;
 
 #endif // FSCORD_H

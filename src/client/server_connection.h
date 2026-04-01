@@ -14,7 +14,7 @@ typedef enum {
     SERVER_CONNECTION_ESTABLISHED
 } ServerConnectionStatus;
 
-void server_connection_create(Arena *arena, struct Fscord *fscord);
+void server_connection_create(Arena *arena);
 
 ServerConnectionStatus server_connection_get_status(void);
 void server_connection_establish(char *address, u16 port, EVP_PKEY *server_rsa_pub);

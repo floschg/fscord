@@ -28,13 +28,15 @@ void draw_rectf32(OSOffscreenBuffer *offscreen, RectF32 rect, V3F32 color)
     u8 rshift = offscreen->red_shift;
     u8 gshift = offscreen->green_shift;
     u8 bshift = offscreen->blue_shift;
+
+    f32 r = color.x * 255.0;
+    f32 g = color.y * 255.0;
+    f32 b = color.z * 255.0;
+    u32 val = (u32)r << rshift | (u32)g << gshift | (u32)b << bshift;
+
     for (i32 y = ymin; y <= ymax; y++) {
         u32 *pixel = offscreen->pixels + y * offscreen->width + xmin;
         for (i32 x = xmin; x <= xmax; x++) {
-            f32 r = color.x * 255.0;
-            f32 g = color.y * 255.0;
-            f32 b = color.z * 255.0;
-            u32 val = (u32)r << rshift | (u32)g << gshift | (u32)b << bshift;
             *pixel++ = val;
         }
     }

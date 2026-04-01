@@ -1,19 +1,30 @@
-#include <basic/string32.h>
-#include <os/os.h>
-#include <client/fscord.h>
-#include <client/session.h>
-#include <client/draw.h>
-#include <client/font.h>
-#include <messages/messages.h>
+#include "basic/string32.h"
+#include "os/os.h"
+#include "client/fscord.h"
+#include "client/session.h"
+#include "client/draw.h"
+#include "client/font.h"
+#include "messages/messages.h"
 
-static Fscord *s_fscord;
+#include <string.h>
+
+extern Fscord fscord;
+
+
+static void
+chat_message_init(ChatMessage *chatmsg, Arena *arena)
+{
+    memset(chatmsg, 0, sizeof(*chatmsg));
+    chatmsg->sender_name = string32_buffer_create(arena, MESSAGES_MAX_USERNAME_LEN);
+    chatmsg->content = string32_buffer_create(arena, MESSAGES_MAX_MESSAGE_LEN);
+}
 
 static void
 session_draw_chat_message(ChatMessage *message, V2F32 pos)
 {
-    OSOffscreenBuffer *screen = s_fscord->offscreen_buffer;
-    Font *font = &s_fscord->font;
-    Arena *frame_arena = &s_fscord->frame_arena;
+    OSOffscreenBuffer *screen = g_fscord.offscreen_buffer;
+    Font *font = &g_fscord.font;
+    Arena *frame_arena = &g_fscord.frame_arena;
 
     f32 str_width;
     f32 dx = font->y_advance / 2.f;
@@ -56,8 +67,8 @@ session_draw_chat_message(ChatMessage *message, V2F32 pos)
 static void
 session_draw_chat(Session *session, RectF32 rect)
 {
-    Font *font = &s_fscord->font;
-    OSOffscreenBuffer *screen = s_fscord->offscreen_buffer;
+    Font *font = &g_fscord.font;
+    OSOffscreenBuffer *screen = g_fscord.offscreen_buffer;
 
 
     // draw background
@@ -76,45 +87,27 @@ session_draw_chat(Session *session, RectF32 rect)
     V2F32 pos = v2f32(rect.x0 + border_size*4, rect.y0 + border_size*4);
     f32 dy = font->y_advance + border_size * 4;
 
-    if (session->cur_message_count == 0) {
-        return;
-    }
+    RingAllocIt it;
+    ring_alloc_it_init(&it, &session->chat_message_alloc);
 
-    // Todo: Can we make this cleaner?
-    //       We're only using indices and no counts within loops, which is good.
-    //       But, we're also using size_t for indices which can wrap around 0
-    //       and make conditions less clear.
-    size_t l = (session->message0 + session->cur_message_count - 1) % session->max_message_count;
-    size_t r = MIN(session->message0 + session->cur_message_count - 1, session->max_message_count-1);
-    while (l < session->message0) {
-        if (pos.y >= pos.y + dy) {
+    ChatMessage *chat_msg = ring_alloc_it_next(&it);
+    while (chat_msg) {
+        if (pos.y >= g_fscord.offscreen_buffer->height) {
             break;
         }
-        ChatMessage *message = &session->messages[l];
-        session_draw_chat_message(message, pos);
+        session_draw_chat_message(chat_msg, pos);
         pos.y += dy;
 
-        l--;
+        chat_msg = ring_alloc_it_next(&it);
     }
-    r++;
-    do {
-        r--;
-
-        if (pos.y >= pos.y + dy) {
-            break;
-        }
-        ChatMessage *message = &session->messages[r];
-        session_draw_chat_message(message, pos);
-        pos.y += dy;
-    } while (r != session->message0);
 }
 
 static void
 session_draw_prompt(Session *session, RectF32 rect)
 {
-    OSOffscreenBuffer *screen = s_fscord->offscreen_buffer;
-    Arena *frame_arena = &s_fscord->frame_arena;
-    Font *font = &s_fscord->font;
+    OSOffscreenBuffer *screen = g_fscord.offscreen_buffer;
+    Arena *frame_arena = &g_fscord.frame_arena;
+    Font *font = &g_fscord.font;
 
 
     // draw background
@@ -143,9 +136,9 @@ session_draw_prompt(Session *session, RectF32 rect)
 static void
 session_draw_users(Session *session, RectF32 rect)
 {
-    OSOffscreenBuffer *screen = s_fscord->offscreen_buffer;
-    Font *font = &s_fscord->font;
-    Arena *frame_arena = &s_fscord->frame_arena;
+    OSOffscreenBuffer *screen = g_fscord.offscreen_buffer;
+    Font *font = &g_fscord.font;
+    Arena *frame_arena = &g_fscord.frame_arena;
 
 
     // draw background
@@ -186,7 +179,7 @@ session_draw_users(Session *session, RectF32 rect)
 void
 session_draw(Session *session)
 {
-    OSOffscreenBuffer *screen = s_fscord->offscreen_buffer;
+    OSOffscreenBuffer *screen = g_fscord.offscreen_buffer;
 
     f32 left_width = screen->width * 0.3;
     f32 prompt_height = screen->height * 0.1;
@@ -203,16 +196,10 @@ session_draw(Session *session)
 void
 session_add_chat_message(Session *session, Time creation_time, String32 *sender_name, String32 *content)
 {
-    size_t i = (session->message0 + session->cur_message_count) % session->max_message_count;
-
-    ChatMessage *message = &session->messages[i];
+    ChatMessage *message = ring_alloc_push(&session->chat_message_alloc);
     message->creation_time = creation_time;
     string32_buffer_copy_string32(message->sender_name, sender_name);
     string32_buffer_copy_string32(message->content, content);
-
-    if (session->cur_message_count < session->max_message_count) {
-        session->cur_message_count++;
-    }
 }
 
 void
@@ -249,7 +236,7 @@ session_add_user(Session *session, String32 *username)
 void
 session_process_event(Session *session, OSEvent *event)
 {
-    Arena *frame_arena = &s_fscord->frame_arena;
+    Arena *frame_arena = &g_fscord.frame_arena;
 
     switch (event->type) {
     case OS_EVENT_KEY_PRESS: {
@@ -276,39 +263,35 @@ session_reset(Session *session)
 {
     session->cur_user_count = 0;
 
-    session->message0 = 0;
-    session->cur_message_count = 0;
+    ring_alloc_clear(&session->chat_message_alloc);
 
     string32_buffer_reset(session->prompt);
 }
 
-Session *
-session_create(Arena *arena, struct Fscord *fscord)
+void
+session_init(Session *session)
 {
-    Session *session = arena_push(arena, sizeof(Session));
+    memset(session, 0, sizeof(*session));
+    Arena *arena = &g_fscord.perma_arena;
+
 
     size_t max_user_count = MESSAGES_MAX_USER_COUNT;
     session->cur_user_count = 0;
     session->max_user_count = max_user_count;
-    session->users = arena_push(arena, max_user_count * sizeof(User));
+    session->users = arena_push(&g_fscord.perma_arena, max_user_count * sizeof(User));
     for (size_t i = 0; i < max_user_count; i++) {
         session->users[i].name = string32_buffer_create(arena, MESSAGES_MAX_MESSAGE_LEN);
     }
 
+
     size_t max_message_count = 256;
-    session->message0 = 0;
-    session->cur_message_count = 0;
-    session->max_message_count = max_message_count;
-    session->messages = arena_push(arena, max_message_count * sizeof(ChatMessage));
+    ChatMessage *messages = arena_push(arena, max_message_count * sizeof(*messages));
     for (size_t i = 0; i < max_message_count; i++) {
-        session->messages[i].sender_name = string32_buffer_create(arena, MESSAGES_MAX_USERNAME_LEN);
-        session->messages[i].content = string32_buffer_create(arena, MESSAGES_MAX_MESSAGE_LEN);
+        chat_message_init(&messages[i], arena);
     }
 
+    ring_alloc_init(&session->chat_message_alloc, sizeof(*messages), max_message_count, messages);
+
     session->prompt = string32_buffer_create(arena, MESSAGES_MAX_MESSAGE_LEN);
-
-    s_fscord = fscord;
-
-    return session;
 }
 

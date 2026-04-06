@@ -40,6 +40,7 @@ add_library(stb STATIC
 )
 
 
+
 # fscord client
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../data/fscord)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/../data/fscord)
@@ -66,7 +67,7 @@ target_sources(fscord PUBLIC
     ${FSCORD_SRC_DIR}/os/linux/linux_time.c
     ${FSCORD_SRC_DIR}/os/linux/linux_file.c
 )
-target_include_directories(fscord PRIVATE ${FSCORD_SRC_DIR})
+target_include_directories(fscord PRIVATE ${FSCORD_SRC_DIR} ${FSCORD_EXTERNAL_DIR/cglm})
 target_link_libraries(fscord SDL3 GL asound ssl crypto m stb)
 
 

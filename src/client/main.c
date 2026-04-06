@@ -1,3 +1,4 @@
+#include "cglm/vec2.h"
 #include <client/fscord.h>
 #include <basic/basic.h>
 #include <basic/arena.h>
@@ -8,6 +9,8 @@
 #include <client/session.h>
 #include <client/string32_handles.h>
 #include <client/server_connection.h>
+
+#include <cglm/cglm.h>
 
 #include <string.h>
 

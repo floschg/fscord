@@ -1,4 +1,3 @@
-#include "cglm/vec2.h"
 #include <client/fscord.h>
 #include <basic/basic.h>
 #include <basic/arena.h>
@@ -9,6 +8,7 @@
 #include <client/session.h>
 #include <client/string32_handles.h>
 #include <client/server_connection.h>
+#include <client/draw.h>
 
 #include <cglm/cglm.h>
 
@@ -116,6 +116,7 @@ fscord_init(Fscord *fscord)
         return false;
     }
     fscord->offscreen_buffer = os_window_get_offscreen_buffer(fscord->window);
+    init_drawing(fscord->offscreen_buffer);
 
 
 #if 0

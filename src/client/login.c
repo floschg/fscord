@@ -24,7 +24,7 @@ login_draw(Login *login)
 
     RectF32 bg_rect = rectf32(0, 0, offscreen->width, offscreen->height);
     V3F32 bg_col = v3f32(0.4, 0.2, 0.2);
-    draw_rectf32(offscreen, bg_rect, bg_col);
+    draw_rectf32(bg_rect, bg_col);
 
 
 
@@ -38,7 +38,7 @@ login_draw(Login *login)
                                       widgets_bg_pos.y,
                                       widgets_bg_pos.x + widgets_bg_size.x,
                                       widgets_bg_pos.y + widgets_bg_size.y);
-    draw_rectf32(offscreen, widgets_bg_rect, v3f32(0.8, 0.6, 0.4));
+    draw_rectf32(widgets_bg_rect, v3f32(0.8, 0.6, 0.4));
 
 
 
@@ -62,33 +62,33 @@ login_draw(Login *login)
     V2F32 curr_pos = widgets_pos;
     f32 cursor_y; // Todo: draw UiInputText or something or draw_string32_buffer straight
 
-    draw_string32(offscreen, curr_pos, string32_value(login->warning), font);
+    draw_string32(curr_pos, string32_value(login->warning), font);
     curr_pos.y += text_height * 3;
 
-    draw_string32(offscreen, curr_pos, username, font);
+    draw_string32(curr_pos, username, font);
     if (login->is_username_active) {
         cursor_y = curr_pos.y;
     }
     curr_pos.y += text_height * 1.4;
 
-    draw_string32(offscreen, curr_pos, string32_value(SH_LOGIN_USERNAME_HINT), font);
+    draw_string32(curr_pos, string32_value(SH_LOGIN_USERNAME_HINT), font);
     curr_pos.y += text_height * 2.4;
 
-    draw_string32(offscreen, curr_pos, servername, font);
+    draw_string32(curr_pos, servername, font);
     if (!login->is_username_active) {
         cursor_y = curr_pos.y;
     }
     curr_pos.y += text_height * 1.4;
 
-    draw_string32(offscreen, curr_pos, string32_value(SH_LOGIN_SERVERNAME_HINT), font);
+    draw_string32(curr_pos, string32_value(SH_LOGIN_SERVERNAME_HINT), font);
 
 
     V2F32 start_pos = {curr_pos.x, cursor_y};
     if (login->is_username_active) {
-        draw_cursor(offscreen, start_pos, font, username, login->username->cursor);
+        draw_cursor(start_pos, font, username, login->username->cursor);
     }
     else {
-        draw_cursor(offscreen, start_pos, font, servername, login->servername->cursor);
+        draw_cursor(start_pos, font, servername, login->servername->cursor);
     }
 }
 

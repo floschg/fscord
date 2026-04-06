@@ -22,7 +22,6 @@ chat_message_init(ChatMessage *chatmsg, Arena *arena)
 static void
 session_draw_chat_message(ChatMessage *message, V2F32 pos)
 {
-    OSOffscreenBuffer *screen = g_fscord.offscreen_buffer;
     Font *font = &g_fscord.font;
     Arena *frame_arena = &g_fscord.frame_arena;
 
@@ -42,7 +41,7 @@ session_draw_chat_message(ChatMessage *message, V2F32 pos)
     sprintf(time_cstr, "%.2d:%.2d", local_time->tm_hour, local_time->tm_min);
 
     String32 *time_str = string32_create_from_ascii(frame_arena, time_cstr);
-    draw_string32(screen, pos, time_str, font);
+    draw_string32(pos, time_str, font);
     str_width = font_get_string32_width(font, time_str);
     pos.x += str_width + dx;
 
@@ -54,33 +53,32 @@ session_draw_chat_message(ChatMessage *message, V2F32 pos)
     string32_buffer_append_ascii_cstr(sender_name_buff, ">");
 
     String32 *sender_name = string32_buffer_to_string32(frame_arena, sender_name_buff);
-    draw_string32(screen, pos, sender_name, font);
+    draw_string32(pos, sender_name, font);
     str_width = font_get_string32_width(font, sender_name);
     pos.x += str_width + dx;
 
 
     // draw content
     String32 *content = string32_buffer_to_string32(frame_arena, message->content);
-    draw_string32(screen, pos, content, font);
+    draw_string32(pos, content, font);
 }
 
 static void
 session_draw_chat(Session *session, RectF32 rect)
 {
     Font *font = &g_fscord.font;
-    OSOffscreenBuffer *screen = g_fscord.offscreen_buffer;
 
 
     // draw background
     V3F32 bg_color = v3f32(0.2, 0.2, 0.3);
-    draw_rectf32(screen, rect, bg_color);
+    draw_rectf32(rect, bg_color);
 
 
     // draw border
     RectF32 border_rect = rect;
     f32 border_size = font->y_advance / 8.f;
     V3F32 border_color = v3f32(0, 0, 0);
-    draw_border(screen, border_rect, border_size, border_color);
+    draw_border(border_rect, border_size, border_color);
 
 
     // draw messages
@@ -92,7 +90,7 @@ session_draw_chat(Session *session, RectF32 rect)
 
     ChatMessage *chat_msg = ring_alloc_it_next(&it);
     while (chat_msg) {
-        if (pos.y >= g_fscord.offscreen_buffer->height) {
+        if (pos.y >= rect.y1) {
             break;
         }
         session_draw_chat_message(chat_msg, pos);
@@ -105,21 +103,20 @@ session_draw_chat(Session *session, RectF32 rect)
 static void
 session_draw_prompt(Session *session, RectF32 rect)
 {
-    OSOffscreenBuffer *screen = g_fscord.offscreen_buffer;
     Arena *frame_arena = &g_fscord.frame_arena;
     Font *font = &g_fscord.font;
 
 
     // draw background
     V3F32 bg_color = v3f32(0.2, 0.3, 0.2);
-    draw_rectf32(screen, rect, bg_color);
+    draw_rectf32(rect, bg_color);
 
 
     // draw border
     RectF32 border_rect = rect;
     f32 border_size = font->y_advance / 8.f;
     V3F32 border_color = v3f32(0.16, 0.32, 0.08);
-    draw_border(screen, border_rect, border_size, border_color);
+    draw_border(border_rect, border_size, border_color);
 
 
     // draw text
@@ -127,29 +124,28 @@ session_draw_prompt(Session *session, RectF32 rect)
     f32 ymargin = border_size * 4;
     V2F32 pos = v2f32(rect.x0 + xmargin, rect.y0 + ymargin);
     String32 *prompt_str = string32_buffer_to_string32(frame_arena, session->prompt);
-    draw_string32(screen, pos, prompt_str, font);
+    draw_string32(pos, prompt_str, font);
 
 
-    draw_cursor(screen, pos, font, prompt_str, session->prompt->cursor);
+    draw_cursor(pos, font, prompt_str, session->prompt->cursor);
 }
 
 static void
 session_draw_users(Session *session, RectF32 rect)
 {
-    OSOffscreenBuffer *screen = g_fscord.offscreen_buffer;
     Font *font = &g_fscord.font;
     Arena *frame_arena = &g_fscord.frame_arena;
 
 
     // draw background
     V3F32 bg_color = v3f32(0.3, 0.2, 0.2);
-    draw_rectf32(screen, rect, bg_color);
+    draw_rectf32(rect, bg_color);
 
 
     // draw border
     f32 border_size = font->y_advance / 8.f;
     V3F32 border_color = v3f32(0, 0, 0);
-    draw_border(screen, rect, border_size, border_color);
+    draw_border(rect, border_size, border_color);
 
 
     // draw users
@@ -162,8 +158,6 @@ session_draw_users(Session *session, RectF32 rect)
         if (pos.y < ymargin - font->y_advance) {
             break;
         }
-
-        f32 width_remain = rect.x1 - pos.x;
         User *user = &session->users[i];
 
         // Todo: we want to cut characters on rectangle boundaries
@@ -171,7 +165,7 @@ session_draw_users(Session *session, RectF32 rect)
         size_t name_len_avail = font->scale * 1000; // Todo: find better value
         size_t name_len = name_len_desired <= name_len_avail ? name_len_desired : name_len_avail;
         String32 *username = string32_buffer_to_string32_with_len(frame_arena, user->name, name_len);
-        draw_string32(screen, pos, username, font);
+        draw_string32(pos, username, font);
         pos.y -= dy;
     }
 }
@@ -179,14 +173,15 @@ session_draw_users(Session *session, RectF32 rect)
 void
 session_draw(Session *session)
 {
-    OSOffscreenBuffer *screen = g_fscord.offscreen_buffer;
+    float screen_w = g_fscord.offscreen_buffer->width;
+    float screen_h = g_fscord.offscreen_buffer->height;
 
-    f32 left_width = screen->width * 0.3;
-    f32 prompt_height = screen->height * 0.1;
+    f32 left_width = screen_w * 0.3;
+    f32 prompt_height = screen_h * 0.1;
 
-    RectF32 users_rect = rectf32(0, 0, left_width, screen->height);
-    RectF32 prompt_rect = rectf32(left_width, 0, screen->width, prompt_height);
-    RectF32 chat_rect = rectf32(left_width, prompt_height, screen->width, screen->height);
+    RectF32 users_rect = rectf32(0, 0, left_width, screen_h);
+    RectF32 prompt_rect = rectf32(left_width, 0, screen_w, prompt_height);
+    RectF32 chat_rect = rectf32(left_width, prompt_height, screen_w, screen_h);
 
     session_draw_users(session, users_rect);
     session_draw_prompt(session, prompt_rect);

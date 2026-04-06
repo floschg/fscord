@@ -21,7 +21,7 @@ fscord_update(Fscord *fscord)
     arena_clear(&fscord->frame_arena);
 
 
-    Login *login = fscord->login;
+    Login *login = &fscord->login;
     Session *session = &fscord->session;
 
 
@@ -133,7 +133,7 @@ fscord_init(Fscord *fscord)
     server_connection_create(&fscord->perma_arena);
 
     fscord->is_logged_in = false;
-    fscord->login = login_create(&fscord->perma_arena, fscord);
+    login_init(&fscord->login);
     session_init(&fscord->session);
 
     return true;

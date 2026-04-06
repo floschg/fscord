@@ -13,13 +13,11 @@
 
 #include <stdlib.h>
 
-static Fscord *s_fscord;
-
 void
 login_draw(Login *login)
 {
-    OSOffscreenBuffer *offscreen = os_window_get_offscreen_buffer(s_fscord->window);
-    Arena *frame_arena = &s_fscord->frame_arena;
+    OSOffscreenBuffer *offscreen = os_window_get_offscreen_buffer(g_fscord.window);
+    Arena *frame_arena = &g_fscord.frame_arena;
 
 
     // draw background color
@@ -33,7 +31,7 @@ login_draw(Login *login)
     // draw widgets background
 
     f32 zoom = 1.f;
-    f32 font_size = s_fscord->font.y_advance;
+    f32 font_size = g_fscord.font.y_advance;
     V2F32 widgets_bg_size = v2f32(zoom*font_size*28, zoom*font_size*20);
     V2F32 widgets_bg_pos = v2f32_center(widgets_bg_size, v2f32(offscreen->width, offscreen->height));
     RectF32 widgets_bg_rect = rectf32(widgets_bg_pos.x,
@@ -46,7 +44,7 @@ login_draw(Login *login)
 
     // draw widgets
 
-    Font *font = &s_fscord->font;
+    Font *font = &g_fscord.font;
 
     f32 text_height = font_get_height(font);
     f32 text_width = text_height * 16;
@@ -176,7 +174,7 @@ login_process_login_result(Login *login, u32 result)
     assert(login->is_trying_to_login);
 
     if (result == S2C_LOGIN_SUCCESS) {
-        s_fscord->is_logged_in = true;
+        g_fscord.is_logged_in = true;
     }
     else {
         login->warning = SH_LOGIN_WARNING_COULD_NOT_CONNECT; // Todo: "could not login"
@@ -189,7 +187,7 @@ login_process_login_result(Login *login, u32 result)
 void
 login_update_login_attempt(Login *login)
 {
-    Arena *frame_arena = &s_fscord->frame_arena;
+    Arena *frame_arena = &g_fscord.frame_arena;
     ServerConnectionStatus status = server_connection_get_status();
     if (status == SERVER_CONNECTION_NOT_ESTABLISHED) {
         login->is_trying_to_login = false;
@@ -216,7 +214,7 @@ login_update_login_attempt(Login *login)
 static void
 login_process_unicode_key_press(Login *login, OSEventKeyPress key_press)
 {
-    Arena *frame_arena = &s_fscord->frame_arena;
+    Arena *frame_arena = &g_fscord.frame_arena;
     switch (key_press.code) {
         case '\t': {
             login->is_username_active = !login->is_username_active;
@@ -265,7 +263,6 @@ login_process_unicode_key_press(Login *login, OSEventKeyPress key_press)
             } else {
                 buffer = login->servername;
             }
-            printf("received key_press: %c\n", key_press.code);
             string32_buffer_edit(buffer, key_press);
         }
     }
@@ -295,17 +292,16 @@ login_process_event(Login *login, OSEvent *event)
     }
 }
 
-Login *
-login_create(Arena *arena, Fscord *fscord)
+void
+login_init(Login *login)
 {
-    s_fscord = fscord;
+    Arena *perma_arena = &g_fscord.perma_arena;
 
-    Login *login = arena_push(arena, sizeof(Login));
     login->is_username_active = false;
     login->is_trying_to_login = false;
     login->is_c2s_login_sent = false;
-    login->username = string32_buffer_create(arena, 32);
-    login->servername = string32_buffer_create(arena, 32);
+    login->username = string32_buffer_create(perma_arena, 32);
+    login->servername = string32_buffer_create(perma_arena, 32);
     login->warning = SH_EMPTY;
 
     #if !defined(NDEBUG)
@@ -314,7 +310,5 @@ login_create(Arena *arena, Fscord *fscord)
     string32_buffer_append_ascii_cstr(login->servername, "127.0.0.1:1905");
     login->servername->cursor = login->servername->len;
     #endif
-
-    return login;
 }
 

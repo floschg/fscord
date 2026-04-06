@@ -22,7 +22,7 @@ typedef struct {
     EVP_PKEY *rsa_server_pub;
 } Login;
 
-Login *login_create(Arena *arena, struct Fscord *fscord);
+void login_init(Login *login);
 void login_update_login_attempt(Login *login);
 void login_process_login_result(Login *login, b32 result);
 void login_process_event(Login *login, OSEvent *event);

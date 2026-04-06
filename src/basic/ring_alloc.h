@@ -1,5 +1,5 @@
-#ifndef FSCORD_RING_ALLOCATOR_H
-#define FSCORD_RING_ALLOCATOR_H
+#ifndef FSCORD_RING_ALLOC_H
+#define FSCORD_RING_ALLOC_H
 
 #include "basic/basic.h"
 
@@ -29,4 +29,4 @@ void ring_alloc_it_init(RingAllocIt *it, RingAlloc *ra);
 void *ring_alloc_it_next(RingAllocIt *it);
 
 
-#endif // FSCORD_RING_ALLOCATOR_H
+#endif // FSCORD_RING_ALLOC_H

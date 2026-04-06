@@ -26,7 +26,7 @@ typedef struct Fscord {
     PlaySound ps_user_disconnected;
 
     b32 is_logged_in;
-    Login *login;
+    Login login;
     Session session;
 } Fscord;
 

@@ -44,11 +44,6 @@ send_s2c_user_update(Client *client, String32 *username, u32 online_status)
     user_update->header.type = S2C_USER_UPDATE;
     user_update->header.size = arena->size_used;
 
-    printf("send_s2c_user_update with:"
-           "\tlen = %d"
-           "\tcodepoints[0] = %c",
-           username_copy->len,
-           username_copy->codepoints[0]);
 
     os_net_secure_stream_send(client->sstream_id, arena->memory, arena->size_used);
     arena_clear(arena);

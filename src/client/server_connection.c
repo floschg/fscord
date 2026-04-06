@@ -112,7 +112,7 @@ handle_s2c_login(void)
 {
     S2C_Login *login_response = (S2C_Login*)s_conn.recv_buff;
 
-    Login *login = g_fscord.login;
+    Login *login = &g_fscord.login;
     login_process_login_result(login, login_response->login_result);
 }
 
@@ -261,7 +261,7 @@ server_connection_establish(char *address, u16 port, EVP_PKEY *server_rsa_pub)
     s_conn.server_rsa_pub = server_rsa_pub;
 
     pthread_t tid;
-    int err = pthread_create(&tid, 0, server_connection_establish_runner, g_fscord.login);
+    int err = pthread_create(&tid, 0, server_connection_establish_runner, &g_fscord.login);
     if (err != 0) {
         printf("pthread_create error in server_connection_establish\n");
         s_conn.status = SERVER_CONNECTION_NOT_ESTABLISHED;

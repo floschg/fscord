@@ -20,7 +20,7 @@ chat_message_init(ChatMessage *chatmsg, Arena *arena)
 }
 
 static void
-session_draw_chat_message(ChatMessage *message, V2F32 pos)
+session_draw_chat_message(ChatMessage *message, V3F32 pos)
 {
     Font *font = &g_fscord.font;
     Arena *frame_arena = &g_fscord.frame_arena;
@@ -64,25 +64,32 @@ session_draw_chat_message(ChatMessage *message, V2F32 pos)
 }
 
 static void
-session_draw_chat(Session *session, RectF32 rect)
+session_draw_chat(Session *session, AABB aabb)
 {
     Font *font = &g_fscord.font;
 
+    float z_border = aabb.z + 0.02f;
+    float z_chat_message = aabb.z + 0.01f;
+
 
     // draw background
-    V3F32 bg_color = v3f32(0.2, 0.2, 0.3);
-    draw_rectf32(rect, bg_color);
+    V3F32 bg_color = {0.2f, 0.2f, 0.3f};
+    draw_aabb(aabb, bg_color);
 
 
     // draw border
-    RectF32 border_rect = rect;
+    aabb.z = z_border;
     f32 border_size = font->y_advance / 8.f;
-    V3F32 border_color = v3f32(0, 0, 0);
-    draw_border(border_rect, border_size, border_color);
+    V3F32 border_color = {0, 0, 0};
+    draw_border(aabb, border_size, border_color);
 
 
     // draw messages
-    V2F32 pos = v2f32(rect.x0 + border_size*4, rect.y0 + border_size*4);
+    V3F32 pos = {
+        aabb.x0 + border_size*4,
+        aabb.y0 + border_size*4,
+        z_chat_message
+    };
     f32 dy = font->y_advance + border_size * 4;
 
     RingAllocIt it;
@@ -90,7 +97,7 @@ session_draw_chat(Session *session, RectF32 rect)
 
     ChatMessage *chat_msg = ring_alloc_it_next(&it);
     while (chat_msg) {
-        if (pos.y >= rect.y1) {
+        if (pos.y >= aabb.y1) {
             break;
         }
         session_draw_chat_message(chat_msg, pos);
@@ -101,59 +108,72 @@ session_draw_chat(Session *session, RectF32 rect)
 }
 
 static void
-session_draw_prompt(Session *session, RectF32 rect)
+session_draw_prompt(Session *session, AABB aabb)
 {
     Arena *frame_arena = &g_fscord.frame_arena;
     Font *font = &g_fscord.font;
 
+    float z_text = aabb.z + 0.01f;
+    float z_border = aabb.z + 0.02f;
+
 
     // draw background
-    V3F32 bg_color = v3f32(0.2, 0.3, 0.2);
-    draw_rectf32(rect, bg_color);
+    V3F32 bg_color = {0.2f, 0.3f, 0.2f};
+    draw_aabb(aabb, bg_color);
 
 
     // draw border
-    RectF32 border_rect = rect;
+    aabb.z = z_border;
     f32 border_size = font->y_advance / 8.f;
-    V3F32 border_color = v3f32(0.16, 0.32, 0.08);
-    draw_border(border_rect, border_size, border_color);
+    V3F32 border_color = {0.16f, 0.32f, 0.08f};
+    draw_border(aabb, border_size, border_color);
 
 
     // draw text
     f32 xmargin = border_size * 4;
     f32 ymargin = border_size * 4;
-    V2F32 pos = v2f32(rect.x0 + xmargin, rect.y0 + ymargin);
+    V3F32 pos = {
+        aabb.x0 + xmargin,
+        aabb.y0 + ymargin,
+        z_text
+    };
     String32 *prompt_str = string32_buffer_to_string32(frame_arena, session->prompt);
     draw_string32(pos, prompt_str, font);
-
-
     draw_cursor(pos, font, prompt_str, session->prompt->cursor);
 }
 
 static void
-session_draw_users(Session *session, RectF32 rect)
+session_draw_users(Session *session, AABB aabb_users)
 {
     Font *font = &g_fscord.font;
     Arena *frame_arena = &g_fscord.frame_arena;
+    AABB aabb = aabb_users;
+
+    float z_usernames = aabb_users.z + 0.01f;
+    float z_border = aabb_users.z + 0.02f;
 
 
     // draw background
-    V3F32 bg_color = v3f32(0.3, 0.2, 0.2);
-    draw_rectf32(rect, bg_color);
+    V3F32 bg_color = {0.3f, 0.2f, 0.2f};
+    draw_aabb(aabb, bg_color);
 
 
     // draw border
+    aabb.z = z_border;
     f32 border_size = font->y_advance / 8.f;
-    V3F32 border_color = v3f32(0, 0, 0);
-    draw_border(rect, border_size, border_color);
+    V3F32 border_color = {0.0f, 0.0f, 0.0f};
+    draw_border(aabb, border_size, border_color);
 
 
     // draw users
     f32 xmargin = border_size * 2;
     f32 ymargin = border_size * 2;
     f32 dy = font->y_advance;
-    V2F32 pos = v2f32(rect.x0 + xmargin, rect.y1 - ymargin - dy);
-
+    V3F32 pos = {
+        aabb.x0 + xmargin,
+        aabb.y1 - ymargin - dy,
+        z_usernames
+    };
     for (size_t i = 0; i < session->cur_user_count; i++) {
         if (pos.y < ymargin - font->y_advance) {
             break;
@@ -173,19 +193,19 @@ session_draw_users(Session *session, RectF32 rect)
 void
 session_draw(Session *session)
 {
-    float screen_w = g_fscord.offscreen_buffer->width;
-    float screen_h = g_fscord.offscreen_buffer->height;
+    float window_w = r_get_window_w();
+    float window_h = r_get_window_h();
 
-    f32 left_width = screen_w * 0.3;
-    f32 prompt_height = screen_h * 0.1;
+    f32 left_width = window_w * 0.3f;
+    f32 prompt_height = window_h * 0.1f;
 
-    RectF32 users_rect = rectf32(0, 0, left_width, screen_h);
-    RectF32 prompt_rect = rectf32(left_width, 0, screen_w, prompt_height);
-    RectF32 chat_rect = rectf32(left_width, prompt_height, screen_w, screen_h);
+    AABB aabb_users = {0.0f, 0.0f, left_width, window_h, 0.0f};
+    AABB aabb_prompt = {left_width, 0.0f, window_w, prompt_height, 0.0f};
+    AABB aabb_chat = {left_width, prompt_height, window_w, window_h, 0.0f};
 
-    session_draw_users(session, users_rect);
-    session_draw_prompt(session, prompt_rect);
-    session_draw_chat(session, chat_rect);
+    session_draw_users(session, aabb_users);
+    session_draw_prompt(session, aabb_prompt);
+    session_draw_chat(session, aabb_chat);
 }
 
 void

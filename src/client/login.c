@@ -16,79 +16,91 @@
 void
 login_draw(Login *login)
 {
-    OSOffscreenBuffer *offscreen = os_window_get_offscreen_buffer(g_fscord.window);
     Arena *frame_arena = &g_fscord.frame_arena;
+    Font *font = &g_fscord.font;
+
+    i32 window_w = r_get_window_w();
+    i32 window_h = r_get_window_h();
+
+    float z_bg = 0.0f;
+    float z_widgets_bg = 0.1f;
+    float z_widgets = 0.2f;
+    float z_text = 0.3f;
+    float z_cursor = 0.4f;
 
 
     // draw background color
-
-    RectF32 bg_rect = rectf32(0, 0, offscreen->width, offscreen->height);
-    V3F32 bg_col = v3f32(0.4, 0.2, 0.2);
-    draw_rectf32(bg_rect, bg_col);
-
+    AABB bg_aabb = {0, 0, window_w, window_h, z_bg};
+    V3F32 bg_col = {0.4f, 0.2f, 0.2f};
+    draw_aabb(bg_aabb, bg_col);
 
 
     // draw widgets background
-
     f32 zoom = 1.f;
     f32 font_size = g_fscord.font.y_advance;
-    V2F32 widgets_bg_size = v2f32(zoom*font_size*28, zoom*font_size*20);
-    V2F32 widgets_bg_pos = v2f32_center(widgets_bg_size, v2f32(offscreen->width, offscreen->height));
-    RectF32 widgets_bg_rect = rectf32(widgets_bg_pos.x,
-                                      widgets_bg_pos.y,
-                                      widgets_bg_pos.x + widgets_bg_size.x,
-                                      widgets_bg_pos.y + widgets_bg_size.y);
-    draw_rectf32(widgets_bg_rect, v3f32(0.8, 0.6, 0.4));
-
+    V2F32 window_size = {window_w, window_h};
+    V2F32 widgets_bg_size = {zoom*font_size*28, zoom*font_size*20};
+    V2F32 widgets_bg_pos = v2f32_center(widgets_bg_size, window_size);
+    AABB widgets_bg_aabb = {
+        widgets_bg_pos.x,
+        widgets_bg_pos.y,
+        widgets_bg_pos.x + widgets_bg_size.x,
+        widgets_bg_pos.y + widgets_bg_size.y,
+        z_widgets_bg
+    };
+    V3F32 widgets_col = {0.8f, 0.6f, 0.4f};
+    draw_aabb(widgets_bg_aabb, widgets_col);
 
 
     // draw widgets
-
-    Font *font = &g_fscord.font;
-
     f32 text_height = font_get_height(font);
     f32 text_width = text_height * 16;
-    V2F32 widgets_size = v2f32(text_width, text_height*8);
-    V2F32 widgets_gap = v2f32((widgets_bg_size.x - widgets_size.x) / 2,
-                              (widgets_bg_size.y - widgets_size.y) / 2);
-    V2F32 widgets_pos = v2f32(widgets_bg_pos.x + widgets_gap.x,
-                              widgets_bg_pos.y + widgets_gap.y);
+    V2F32 widgets_size = {text_width, text_height*8};
+    V2F32 widgets_gap = {
+        (widgets_bg_size.x - widgets_size.x) / 2,
+        (widgets_bg_size.y - widgets_size.y) / 2
+    };
+    V3F32 widgets_pos = {
+        widgets_bg_pos.x + widgets_gap.x,
+        widgets_bg_pos.y + widgets_gap.y,
+        z_widgets
+    };
 
 
     String32 *servername = string32_buffer_to_string32(frame_arena, login->servername);
     String32 *username = string32_buffer_to_string32(frame_arena, login->username);
 
 
-    V2F32 curr_pos = widgets_pos;
+    V3F32 text_pos = {widgets_pos.x, widgets_pos.y, z_text};
     f32 cursor_y; // Todo: draw UiInputText or something or draw_string32_buffer straight
 
-    draw_string32(curr_pos, string32_value(login->warning), font);
-    curr_pos.y += text_height * 3;
+    draw_string32(text_pos, string32_value(login->warning), font);
+    text_pos.y += text_height * 3;
 
-    draw_string32(curr_pos, username, font);
+    draw_string32(text_pos, username, font);
     if (login->is_username_active) {
-        cursor_y = curr_pos.y;
+        cursor_y = text_pos.y;
     }
-    curr_pos.y += text_height * 1.4;
+    text_pos.y += text_height * 1.4;
 
-    draw_string32(curr_pos, string32_value(SH_LOGIN_USERNAME_HINT), font);
-    curr_pos.y += text_height * 2.4;
+    draw_string32(text_pos, string32_value(SH_LOGIN_USERNAME_HINT), font);
+    text_pos.y += text_height * 2.4;
 
-    draw_string32(curr_pos, servername, font);
+    draw_string32(text_pos, servername, font);
     if (!login->is_username_active) {
-        cursor_y = curr_pos.y;
+        cursor_y = text_pos.y;
     }
-    curr_pos.y += text_height * 1.4;
+    text_pos.y += text_height * 1.4;
 
-    draw_string32(curr_pos, string32_value(SH_LOGIN_SERVERNAME_HINT), font);
+    draw_string32(text_pos, string32_value(SH_LOGIN_SERVERNAME_HINT), font);
 
 
-    V2F32 start_pos = {curr_pos.x, cursor_y};
+    V3F32 cursor_text_pos = {text_pos.x, cursor_y, z_cursor};
     if (login->is_username_active) {
-        draw_cursor(start_pos, font, username, login->username->cursor);
+        draw_cursor(cursor_text_pos, font, username, login->username->cursor);
     }
     else {
-        draw_cursor(start_pos, font, servername, login->servername->cursor);
+        draw_cursor(cursor_text_pos, font, servername, login->servername->cursor);
     }
 }
 

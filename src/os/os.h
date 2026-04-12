@@ -66,23 +66,16 @@ typedef struct OSEvent {
 } OSEvent;
 
 
-// Todo: switch to gpu-rendering (probably opengl)
-typedef struct {
-    u8 red_shift;
-    u8 green_shift;
-    u8 blue_shift;
-    u8 alpha_shift;
-    i32 width;
-    i32 height;
-    u32 *pixels;
-} OSOffscreenBuffer;
-
+//
+// Window
+//
 typedef struct OSWindow OSWindow;
-OSWindow*          os_window_create(const char *name, i32 width, i32 height);
-void               os_window_destroy(OSWindow *window);
-b32                os_window_get_event(OSWindow *window, OSEvent *event);
-OSOffscreenBuffer* os_window_get_offscreen_buffer(OSWindow *window);
-void               os_window_swap_buffers(OSWindow *window, OSOffscreenBuffer *offscreen_buffer);
+OSWindow*   os_window_create(const char *name, i32 width, i32 height);
+void        os_window_destroy(OSWindow *window);
+b32         os_window_get_event(OSWindow *window, OSEvent *event);
+void        os_window_swap_buffers(OSWindow *window);
+i32         os_window_get_w(OSWindow *window);
+i32         os_window_get_h(OSWindow *window);
 
 
 

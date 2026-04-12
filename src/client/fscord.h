@@ -14,7 +14,6 @@ typedef struct Fscord {
     Arena frame_arena;
 
     OSWindow *window;
-    OSOffscreenBuffer *offscreen_buffer;
     OSSoundPlayer *sound_player;
     OSSoundBuffer *sound_buffer;
 

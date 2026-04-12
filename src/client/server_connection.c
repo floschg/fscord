@@ -42,7 +42,7 @@ send_c2s_chat_message(String32 *content)
     chat_message->header.size = send_arena->size_used;
 
 
-    i64 size_sent = os_net_secure_stream_send(s_conn.secure_stream_id, send_arena->memory, send_arena->size_used);
+    i64 size_sent = os_net_secure_stream_send(s_conn.secure_stream_id, send_arena->data, send_arena->size_used);
     if (size_sent < 0) {
         server_connection_terminate();
     }
@@ -70,7 +70,7 @@ send_c2s_login(String32 *username, String32 *password)
     login->header.size = send_arena->size_used;
 
 
-    i64 size_sent = os_net_secure_stream_send(s_conn.secure_stream_id, send_arena->memory, send_arena->size_used);
+    i64 size_sent = os_net_secure_stream_send(s_conn.secure_stream_id, send_arena->data, send_arena->size_used);
     if (size_sent < 0) {
         server_connection_terminate();
     }

@@ -133,7 +133,7 @@ font_init(Font *font, char *path, int font_size)
         glyph->advance_width = advance_width;
         glyph->bitmap.width  = width;
         glyph->bitmap.height = height;
-        glyph->bitmap.data.grayscale = bitmap_correct;
+        glyph->bitmap.data.alpha = bitmap_correct;
         font->arena.size_used = arena_save_pos;
     }
 

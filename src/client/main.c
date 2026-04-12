@@ -23,7 +23,6 @@ fscord_update(Fscord *fscord)
 {
     arena_clear(&fscord->frame_arena);
 
-
     Login *login = &fscord->login;
     Session *session = &fscord->session;
 
@@ -80,18 +79,20 @@ fscord_update(Fscord *fscord)
         }
     }
 
+#if 0
+    OSSoundBuffer *sound_buffer = os_sound_player_get_buffer(fscord->sound_player);
+    play_sound_update(&fscord->ps_user_connected, sound_buffer);
+    play_sound_update(&fscord->ps_user_disconnected, sound_buffer);
+#endif
+
+    r_begin();
     if (fscord->is_logged_in) {
         session_draw(session);
     }
     else {
         login_draw(login);
     }
-
-#if 0
-    OSSoundBuffer *sound_buffer = os_sound_player_get_buffer(fscord->sound_player);
-    play_sound_update(&fscord->ps_user_connected, sound_buffer);
-    play_sound_update(&fscord->ps_user_disconnected, sound_buffer);
-#endif
+    r_end();
 
 
     return true;
@@ -102,21 +103,23 @@ static b32
 fscord_init(Fscord *fscord)
 {
     memset(fscord, 0, sizeof(*fscord));
-
-
-    arena_init(&fscord->perma_arena, MEBIBYTES(10));
-    arena_init(&fscord->frame_arena, MEBIBYTES(10));
+    arena_init(&fscord->perma_arena, MEBIBYTES(32));
+    arena_init(&fscord->frame_arena, MEBIBYTES(32));
 
 
     string32_handles_load_language();
 
 
-    fscord->window = os_window_create("fscord", 1024, 720);
+    i32 window_w = 1024;
+    i32 window_h = 720;
+    fscord->window = os_window_create("fscord", window_w, window_h);
     if (!fscord->window) {
         return false;
     }
-    fscord->offscreen_buffer = os_window_get_offscreen_buffer(fscord->window);
-    init_drawing(fscord->offscreen_buffer);
+
+    if (!r_init(fscord->window)) {
+        return false;
+    }
 
 
 #if 0
@@ -155,7 +158,7 @@ fscord_main(void)
     while (running) {
         running = fscord_update(&g_fscord);
 
-        os_window_swap_buffers(g_fscord.window, g_fscord.offscreen_buffer);
+        os_window_swap_buffers(g_fscord.window);
         //os_sound_player_play(fscord->sound_player);
     }
 }

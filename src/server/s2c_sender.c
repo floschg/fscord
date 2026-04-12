@@ -25,7 +25,7 @@ send_s2c_chat_message(Client *client, String32 *username, String32 *content, OST
     chat_message->header.size = arena->size_used;
 
 
-    os_net_secure_stream_send(client->sstream_id, arena->memory, arena->size_used);
+    os_net_secure_stream_send(client->sstream_id, arena->data, arena->size_used);
     arena_clear(arena);
 }
 
@@ -45,7 +45,7 @@ send_s2c_user_update(Client *client, String32 *username, u32 online_status)
     user_update->header.size = arena->size_used;
 
 
-    os_net_secure_stream_send(client->sstream_id, arena->memory, arena->size_used);
+    os_net_secure_stream_send(client->sstream_id, arena->data, arena->size_used);
     arena_clear(arena);
 }
 
@@ -63,7 +63,7 @@ send_s2c_login(Client *client, u32 login_result)
     login->header.size = arena->size_used;
 
 
-    os_net_secure_stream_send(client->sstream_id, arena->memory, arena->size_used);
+    os_net_secure_stream_send(client->sstream_id, arena->data, arena->size_used);
     arena_clear(arena);
 }
 

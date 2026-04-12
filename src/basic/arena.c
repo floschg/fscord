@@ -6,17 +6,29 @@
 void
 arena_init(Arena *arena, u64 size)
 {
+    arena->is_primordial = true;
     arena->size_used = 0;
     arena->size_max = size;
-    arena->memory = malloc(size);
+    arena->data = malloc(size);
 }
 
 void
 arena_deinit(Arena *arena)
 {
-    arena->size_used = 0;
-    arena->size_max = 0;
-    free(arena->memory);
+    assert(arena->is_primordial);
+    free(arena->data);
+    memset(arena, 0, sizeof(*arena));
+}
+
+Arena
+arena_make_subarena(Arena *parent, u64 size)
+{
+    Arena result;
+    result.is_primordial = false;
+    result.size_used = 0;
+    result.size_max = size;
+    result.data = arena_push(parent, size);
+    return result;
 }
 
 void
@@ -28,7 +40,7 @@ arena_align(Arena *arena, u64 alignment)
 void*
 arena_push(Arena *arena, u64 size)
 {
-    void *result = arena->memory + arena->size_used;
+    void *result = arena->data + arena->size_used;
     arena->size_used += size;
     assert(arena->size_used <= arena->size_max);
     return result;
@@ -49,7 +61,7 @@ arena_pop_size(Arena *arena, u64 size)
 void
 arena_zero(Arena *arena)
 {
-    memset(arena->memory, 0, arena->size_used);
+    memset(arena->data, 0, arena->size_used);
 }
 
 void

@@ -11,7 +11,7 @@ typedef struct {
     i32 height;
     union {
         u32 *rgba;
-        u8 *grayscale;
+        u8 *alpha;
     } data;
 } Bitmap;
 

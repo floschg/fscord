@@ -5,9 +5,10 @@
 #include <basic/basic.h>
 
 typedef struct {
-    size_t size_used;
-    size_t size_max;
-    u8 *memory;
+    bool is_primordial;
+    u64 size_used;
+    u64 size_max;
+    u8 *data;
 } Arena;
 
 
@@ -19,6 +20,8 @@ typedef struct {
 
 void    arena_init(Arena *arena, u64 size);
 void    arena_deinit(Arena *arena);
+
+Arena   arena_make_subarena(Arena *parent, u64 size);
 
 void    arena_align(Arena *arena, u64 alignment);
 void*   arena_push(Arena *arena, u64 size);

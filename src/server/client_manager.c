@@ -18,8 +18,29 @@
 static Client *
 client_from_id(ClientManager *mgr, ClientId client_id)
 {
-    Client *client = &mgr->clients[client_id];
+    Client *client = &mgr->clients[client_id-1];
     return client;
+}
+
+static void
+dealloc_client(ClientManager *mgr, ClientId id)
+{
+    mgr->free_client_ids[mgr->free_client_count] = id;
+    mgr->free_client_count++;
+}
+
+static ClientId
+alloc_client(ClientManager *mgr)
+{
+    if (mgr->free_client_count == 0) {
+        printf("alloc_client failed, no more free spots\n");
+        return 0;
+    }
+
+    mgr->free_client_count -= 1;
+    ClientId client_id = mgr->free_client_ids[mgr->free_client_count];
+
+    return client_id;
 }
 
 static void
@@ -47,8 +68,7 @@ rm_client(ClientManager *mgr, ClientId client_id)
 
 
     // free
-    mgr->free_client_ids[mgr->free_client_count] = client_id;
-    mgr->free_client_count++;
+    dealloc_client(mgr, client_id);
 
 
     // broadcast disconnect message
@@ -66,15 +86,14 @@ rm_client(ClientManager *mgr, ClientId client_id)
     }
 }
 
-static ClientId
+static void
 add_client(ClientManager *mgr, OSNetSecureStreamId sstream_id)
 {
     // allocate
-    if (mgr->free_client_count == 0) {
-        return FSCORD_CLIENT_ID_INVALID;
+    ClientId client_id = alloc_client(mgr);
+    if (!client_id) {
+        return;
     }
-    mgr->free_client_count -= 1;
-    ClientId client_id = mgr->free_client_ids[mgr->free_client_count];
 
 
     // add to epoll
@@ -83,11 +102,10 @@ add_client(ClientManager *mgr, OSNetSecureStreamId sstream_id)
     event.data.u32 = client_id;
 
     int fd = os_net_secure_stream_get_fd(sstream_id);
-
     if (epoll_ctl(mgr->epoll_fd, EPOLL_CTL_ADD, fd, &event) == -1) {
-        mgr->free_client_ids[mgr->free_client_count++] = client_id;
+        dealloc_client(mgr, client_id);
         perror("epoll_ctl<add>:");
-        return false;
+        return;
     }
 
 
@@ -97,7 +115,7 @@ add_client(ClientManager *mgr, OSNetSecureStreamId sstream_id)
     assert(client->recv_buff_size_used == 0);
 
 
-    return client_id;
+    return;
 }
 
 
@@ -142,7 +160,7 @@ handle_client_event(ClientManager *mgr, struct epoll_event event)
 static void
 handle_listener_event(ClientManager *mgr, struct epoll_event event)
 {
-    if (event.events & (EPOLLHUP | EPOLLERR)) {
+    if (event.events & (EPOLLHUP | EPOLLERR | EPOLLRDHUP)) {
         printf("listener failed\n");
         exit(0);
     }
@@ -171,12 +189,8 @@ client_manager_handle_events(ClientManager *mgr)
         return false;
     }
 
-    if (event_count > 0) {
-        printf("event.events = %d\n", events[0].events);
-    }
-
     for (size_t i = 0; i < event_count; i++) {
-        if (events[i].data.u32 == mgr->listening_sstream_id) {
+        if (events[i].data.u64 & 1ULL<<63) {
             handle_listener_event(mgr, events[i]);
         } else {
             handle_client_event(mgr, events[i]);
@@ -228,7 +242,7 @@ client_manager_init(ClientManager *mgr, u16 port, u32 max_client_count, Arena *a
 
     struct epoll_event ev;
     ev.events = EPOLLIN | EPOLLET;
-    ev.data.u32 = mgr->listening_sstream_id;
+    ev.data.u64 = mgr->listening_sstream_id | 1ULL << 63;
     if (epoll_ctl(mgr->epoll_fd, EPOLL_CTL_ADD, listening_fd, &ev) == -1) {
         perror("epoll_ctl<add> for listening_sstream_id:");
         client_manager_deinit(mgr);
@@ -247,17 +261,17 @@ client_manager_init(ClientManager *mgr, u16 port, u32 max_client_count, Arena *a
 
     mgr->free_client_ids = arena_push(arena, max_client_count * sizeof(ClientId));
     for (size_t i = 0; i < max_client_count; i++) {
-        mgr->free_client_ids[i] = i;
+        mgr->free_client_ids[i] = i + 1;
     }
 
 
     s2c_sender_init(arena);
 
+
     arena_init(&mgr->trans_arena, KIBIBYTES(1)-64);
 
+
     printf("listening on port %d\n", port);
-
-
     return true;
 }
 

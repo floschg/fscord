@@ -1,5 +1,5 @@
-#ifndef CLIENT_CONNECTIONS_H
-#define CLIENT_CONNECTIONS_H
+#ifndef CLIENT_MANAGER_H
+#define CLIENT_MANAGER_H
 
 #include <basic/basic.h>
 #include <basic/string32.h>
@@ -9,7 +9,7 @@
 
 
 typedef uint32_t ClientId;
-#define FSCORD_CLIENT_ID_INVALID U32_MAX
+
 
 typedef struct {
     OSNetSecureStreamId sstream_id;
@@ -42,4 +42,4 @@ void client_manager_deinit(ClientManager *mgr);
 bool client_manager_handle_events(ClientManager *mgr);
 
 
-#endif // CLIENT_CONNECTIONS_H
+#endif // CLIENT_MANAGER_H

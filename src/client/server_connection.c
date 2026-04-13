@@ -222,7 +222,7 @@ void
 server_connection_terminate(void)
 {
     os_net_secure_stream_close(s_conn.secure_stream_id);
-    s_conn.secure_stream_id = OS_NET_SECURE_STREAM_ID_INVALID;
+    s_conn.secure_stream_id = 0;
     s_conn.status = SERVER_CONNECTION_NOT_ESTABLISHED;
 }
 
@@ -238,7 +238,7 @@ server_connection_establish_runner(void *data)
     EVP_PKEY *rsa = s_conn.server_rsa_pub;
 
     u32 secure_stream_id = os_net_secure_stream_connect(address, port, rsa);
-    if (secure_stream_id == OS_NET_SECURE_STREAM_ID_INVALID) {
+    if (!secure_stream_id) {
         s_conn.status = SERVER_CONNECTION_NOT_ESTABLISHED;
         pthread_exit(0);
     }
@@ -282,7 +282,7 @@ void
 server_connection_create(Arena *arena)
 {
     s_conn.status = SERVER_CONNECTION_NOT_ESTABLISHED;
-    s_conn.secure_stream_id = OS_NET_SECURE_STREAM_ID_INVALID;
+    s_conn.secure_stream_id = 0;
 
     arena_init(&s_conn.send_arena, MESSAGES_MAX_PACKAGE_SIZE);
 

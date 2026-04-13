@@ -69,11 +69,39 @@ static u32 s_free_id_count;
 static u32 *s_free_ids;
 
 
+static OSNetSecureStream *
+secure_stream_from_id(u32 id)
+{
+    return &s_secure_streams[id-1];
+}
+
+static void
+os_net_secure_stream_free(u32 id)
+{
+    s_free_ids[s_free_id_count] = id;
+    s_free_id_count += 1;
+}
+
+static u32
+os_net_secure_stream_alloc(void)
+{
+    assert(s_free_id_count > 0);
+    if (s_free_id_count == 0) {
+        printf("error: cannot allocate another secure stream\n");
+        return 0;
+    }
+
+    s_free_id_count -= 1;
+    u32 id = s_free_ids[s_free_id_count];
+    return id;
+}
+
 
 OSNetSecureStreamStatus
 os_net_secure_stream_get_status(u32 id)
 {
-    return s_secure_streams[id].status;
+    OSNetSecureStream *sstream = secure_stream_from_id(id);
+    return sstream->status;
 }
 
 static b32
@@ -164,7 +192,7 @@ recv_and_decrypt_aes_package(OSNetSecureStream *secure_stream)
 i64
 os_net_secure_stream_recv(u32 id, u8 *buff, size_t size)
 {
-    OSNetSecureStream *secure_stream = &s_secure_streams[id];
+    OSNetSecureStream *secure_stream = secure_stream_from_id(id);
     if (secure_stream->status != OS_NET_SECURE_STREAM_CONNECTED) {
         return -1;
     }
@@ -199,7 +227,7 @@ os_net_secure_stream_recv(u32 id, u8 *buff, size_t size)
 i64
 os_net_secure_stream_send(u32 id, u8 *buff, size_t size)
 {
-    OSNetSecureStream *secure_stream = &s_secure_streams[id];
+    OSNetSecureStream *secure_stream = secure_stream_from_id(id);
     if (secure_stream->status != OS_NET_SECURE_STREAM_CONNECTED) {
         return -1;
     }
@@ -241,38 +269,16 @@ os_net_secure_stream_send(u32 id, u8 *buff, size_t size)
 int
 os_net_secure_stream_get_fd(u32 id)
 {
-    OSNetSecureStream *secure_stream = &s_secure_streams[id];
+    OSNetSecureStream *secure_stream = secure_stream_from_id(id);
     return secure_stream->fd;
 }
 
-
-static void
-os_net_secure_stream_free(u32 id)
-{
-    s_free_ids[s_free_id_count] = id;
-    s_free_id_count += 1;
-}
-
-
-static u32
-os_net_secure_stream_alloc(void)
-{
-    assert(s_free_id_count > 0);
-    if (s_free_id_count == 0) {
-        return OS_NET_SECURE_STREAM_ID_INVALID;
-    }
-
-    u32 id = s_free_ids[s_free_id_count-1];
-    s_free_id_count -= 1;
-
-    return id;
-}
 
 
 void
 os_net_secure_stream_close(u32 id)
 {
-    OSNetSecureStream *secure_stream = &s_secure_streams[id];
+    OSNetSecureStream *secure_stream = secure_stream_from_id(id);
 
     close(secure_stream->fd);
     memset(secure_stream, 0, sizeof(*secure_stream));
@@ -286,14 +292,14 @@ os_net_secure_stream_listen(u16 port, EVP_PKEY *rsa_pri)
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd == -1) {
         perror("socket()");
-        return OS_NET_SECURE_STREAM_ID_INVALID;
+        return 0;
     }
 
     int enable_reuse = 1;
     if (setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &enable_reuse, sizeof(int)) < 0) {
         perror("setsockopt(SO_REUSEADDR)");
         close(fd);
-        return OS_NET_SECURE_STREAM_ID_INVALID;
+        return 0;
     }
 
     struct sockaddr_in local_addr;
@@ -303,20 +309,24 @@ os_net_secure_stream_listen(u16 port, EVP_PKEY *rsa_pri)
     if (bind(fd, (struct sockaddr *)&local_addr, sizeof(local_addr)) < 0) {
         perror("bind()");
         close(fd);
-        return OS_NET_SECURE_STREAM_ID_INVALID;
+        return 0;
     }
 
     int backlog = 128;
     if (listen(fd, backlog) == -1) {
         perror("listen()");
         close(fd);
-        return OS_NET_SECURE_STREAM_ID_INVALID;
+        return 0;
     }
 
 
     u32 id = os_net_secure_stream_alloc();
+    if (!id) {
+        close(fd);
+        return 0;
+    }
 
-    OSNetSecureStream *secure_stream = &s_secure_streams[id];
+    OSNetSecureStream *secure_stream = secure_stream_from_id(id);
     secure_stream->fd = fd;
     secure_stream->status = OS_NET_SECURE_STREAM_CONNECTED;
     secure_stream->rsa_key = rsa_pri;
@@ -344,7 +354,7 @@ set_socket_nonblocking(int fd)
 u32
 os_net_secure_stream_accept(u32 listener_id)
 {
-    OSNetSecureStream *listener = &s_secure_streams[listener_id];
+    OSNetSecureStream *listener = secure_stream_from_id(listener_id);
 
 
     struct sockaddr_in addr;
@@ -353,17 +363,17 @@ os_net_secure_stream_accept(u32 listener_id)
     int fd = accept(listener->fd, (struct sockaddr*)&addr, &addr_size);
     if (fd == -1) {
         printf("accept() failed\n");
-        return OS_NET_SECURE_STREAM_ID_INVALID;
+        return 0;
     }
 
 
     u32 secure_stream_id = os_net_secure_stream_alloc();
-    if (secure_stream_id == OS_NET_SECURE_STREAM_ID_INVALID) {
+    if (!secure_stream_id) {
         close(fd);
-        return OS_NET_SECURE_STREAM_ID_INVALID;
+        return 0;
     }
 
-    OSNetSecureStream *secure_stream = &s_secure_streams[secure_stream_id];
+    OSNetSecureStream *secure_stream = secure_stream_from_id(secure_stream_id);
     secure_stream->fd = fd;
     secure_stream->status = OS_NET_SECURE_STREAM_HANDSHAKING;
 
@@ -374,7 +384,7 @@ os_net_secure_stream_accept(u32 listener_id)
     if (recvd_size != sizeof(encrypted_cm_handshake)) {
         close(fd);
         os_net_secure_stream_free(secure_stream_id);
-        return OS_NET_SECURE_STREAM_ID_INVALID;
+        return 0;
     }
 
     // decrypt rsa request
@@ -382,7 +392,7 @@ os_net_secure_stream_accept(u32 listener_id)
     if (!rsa_decrypt(listener->rsa_key, &cm_handshake, encrypted_cm_handshake, sizeof(encrypted_cm_handshake))) {
         close(fd);
         os_net_secure_stream_free(secure_stream_id);
-        return OS_NET_SECURE_STREAM_ID_INVALID;
+        return 0;
     }
 
 
@@ -406,7 +416,7 @@ os_net_secure_stream_accept(u32 listener_id)
                          aes_header->tag, sizeof(aes_header->tag))) {
         close(fd);
         os_net_secure_stream_free(secure_stream_id);
-        return OS_NET_SECURE_STREAM_ID_INVALID;
+        return 0;
     }
     aes_header->payload_size = sizeof(sm_handshake);
     secure_stream->send_ciphertext_size_used = sizeof(*aes_header) + sizeof(sm_handshake);
@@ -416,13 +426,13 @@ os_net_secure_stream_accept(u32 listener_id)
     if (sent_size != secure_stream->send_ciphertext_size_used) {
         close(fd);
         os_net_secure_stream_free(secure_stream_id);
-        return OS_NET_SECURE_STREAM_ID_INVALID;
+        return 0;
     }
 
 
     if (!set_socket_nonblocking(fd)) {
         close(fd);
-        return OS_NET_SECURE_STREAM_ID_INVALID;
+        return 0;
     }
 
 
@@ -436,7 +446,7 @@ os_net_secure_stream_connect(char *address, u16 port, EVP_PKEY *server_rsa_pub)
     int fd = socket(AF_INET, SOCK_STREAM, 0);
     if (fd == -1) {
         printf("cant open socket\n");
-        return OS_NET_SECURE_STREAM_ID_INVALID;
+        return 0;
     }
 
     struct sockaddr_in target_addr;
@@ -447,19 +457,19 @@ os_net_secure_stream_connect(char *address, u16 port, EVP_PKEY *server_rsa_pub)
     if (connect(fd, (struct sockaddr*)&target_addr, sizeof(target_addr)) == -1) {
         printf("connect failed\n");
         close(fd);
-        return OS_NET_SECURE_STREAM_ID_INVALID;
+        return 0;
     }
 
 
 
     u32 secure_stream_id = os_net_secure_stream_alloc();
-    if (secure_stream_id == OS_NET_SECURE_STREAM_ID_INVALID) {
+    if (!secure_stream_id) {
         close(fd);
         os_net_secure_stream_free(secure_stream_id);
-        return OS_NET_SECURE_STREAM_ID_INVALID;
+        return 0;
     }
 
-    OSNetSecureStream *secure_stream = &s_secure_streams[secure_stream_id];
+    OSNetSecureStream *secure_stream = secure_stream_from_id(secure_stream_id);
     secure_stream->fd = fd;
     secure_stream->rsa_key = server_rsa_pub;
 
@@ -467,22 +477,22 @@ os_net_secure_stream_connect(char *address, u16 port, EVP_PKEY *server_rsa_pub)
     if (!aes_gcm_key_init_random(&secure_stream->send_aes_key)) {
         close(fd);
         os_net_secure_stream_free(secure_stream_id);
-        return OS_NET_SECURE_STREAM_ID_INVALID;
+        return 0;
     }
     if (!aes_gcm_iv_init(&secure_stream->send_aes_iv)) {
         close(fd);
         os_net_secure_stream_free(secure_stream_id);
-        return OS_NET_SECURE_STREAM_ID_INVALID;
+        return 0;
     }
     if (!aes_gcm_key_init_random(&secure_stream->recv_aes_key)) {
         close(fd);
         os_net_secure_stream_free(secure_stream_id);
-        return OS_NET_SECURE_STREAM_ID_INVALID;
+        return 0;
     }
     if (!aes_gcm_iv_init(&secure_stream->recv_aes_iv)) {
         close(fd);
         os_net_secure_stream_free(secure_stream_id);
-        return OS_NET_SECURE_STREAM_ID_INVALID;
+        return 0;
     }
 
 
@@ -498,7 +508,7 @@ os_net_secure_stream_connect(char *address, u16 port, EVP_PKEY *server_rsa_pub)
         printf("RAND_bytes failed at %s:%d", __FILE__, __LINE__);
         close(fd);
         os_net_secure_stream_free(secure_stream_id);
-        return OS_NET_SECURE_STREAM_ID_INVALID;
+        return 0;
     }
 
     // encrypt rsa request
@@ -506,7 +516,7 @@ os_net_secure_stream_connect(char *address, u16 port, EVP_PKEY *server_rsa_pub)
     if (!rsa_encrypt(server_rsa_pub, encrypted_req, &cm_handshake, sizeof(cm_handshake))) {
         close(fd);
         os_net_secure_stream_free(secure_stream_id);
-        return OS_NET_SECURE_STREAM_ID_INVALID;
+        return 0;
     }
 
     // send rsa request
@@ -514,7 +524,7 @@ os_net_secure_stream_connect(char *address, u16 port, EVP_PKEY *server_rsa_pub)
     if (sent_size != 512) {
         close(fd);
         os_net_secure_stream_free(secure_stream_id);
-        return OS_NET_SECURE_STREAM_ID_INVALID;
+        return 0;
     }
 
 
@@ -530,7 +540,7 @@ os_net_secure_stream_connect(char *address, u16 port, EVP_PKEY *server_rsa_pub)
     if (recvd_size != response_size) {
         close(fd);
         os_net_secure_stream_free(secure_stream_id);
-        return OS_NET_SECURE_STREAM_ID_INVALID;
+        return 0;
     }
 
     // decrypt aes response
@@ -541,7 +551,7 @@ os_net_secure_stream_connect(char *address, u16 port, EVP_PKEY *server_rsa_pub)
                          aes_header->tag, sizeof(aes_header->tag))) {
         close(fd);
         os_net_secure_stream_free(secure_stream_id);
-        return OS_NET_SECURE_STREAM_ID_INVALID;
+        return 0;
     }
 
     // verify aes response
@@ -549,13 +559,14 @@ os_net_secure_stream_connect(char *address, u16 port, EVP_PKEY *server_rsa_pub)
     if (memcmp(cm_handshake.client_random, sm_handshake.client_random, sizeof(cm_handshake.client_random)) != 0) {
         close(fd);
         os_net_secure_stream_free(secure_stream_id);
-        return OS_NET_SECURE_STREAM_ID_INVALID;
+        return 0;
     }
 
 
     if (!set_socket_nonblocking(fd)) {
         close(fd);
-        return OS_NET_SECURE_STREAM_ID_INVALID;
+        os_net_secure_stream_free(secure_stream_id);
+        return 0;
     }
 
 
@@ -574,7 +585,7 @@ os_net_secure_streams_init(Arena *arena, size_t max_count)
     s_free_id_count = max_count;
     s_free_ids = arena_push(arena, max_count * sizeof(u32));
     for (size_t i = 0; i < max_count; i++) {
-        s_free_ids[i] = i;
+        s_free_ids[i] = i + 1;
     }
 }
 

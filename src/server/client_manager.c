@@ -61,7 +61,7 @@ rm_client(ClientManager *mgr, ClientId client_id)
 
 
     // deinit
-    client->sstream_id = OS_NET_SECURE_STREAM_ID_INVALID;
+    client->sstream_id = 0;
     client->recv_buff_size_used = 0;
     memset(client->recv_buff, 0, sizeof(client->recv_buff));
     memset(client->username_buff, 0, sizeof(client->username_buff));
@@ -166,7 +166,7 @@ handle_listener_event(ClientManager *mgr, struct epoll_event event)
     }
     if (event.events & EPOLLIN) {
         OSNetSecureStreamId sstream_id = os_net_secure_stream_accept(mgr->listening_sstream_id);
-        if (sstream_id == OS_NET_SECURE_STREAM_ID_INVALID) {
+        if (!sstream_id) {
             return;
         }
 
@@ -206,9 +206,9 @@ client_manager_deinit(ClientManager *mgr)
         close(mgr->epoll_fd);
         mgr->epoll_fd = -1;
     }
-    if (mgr->listening_sstream_id != OS_NET_SECURE_STREAM_ID_INVALID) {
+    if (mgr->listening_sstream_id) {
         os_net_secure_stream_close(mgr->listening_sstream_id);
-        mgr->listening_sstream_id = OS_NET_SECURE_STREAM_ID_INVALID;
+        mgr->listening_sstream_id = 0;
     }
     if (mgr->rsa_pri) {
         rsa_destroy(mgr->rsa_pri);
@@ -234,7 +234,7 @@ client_manager_init(ClientManager *mgr, u16 port, u32 max_client_count, Arena *a
 
     os_net_secure_streams_init(arena, max_client_count + 1);
     mgr->listening_sstream_id = os_net_secure_stream_listen(port, mgr->rsa_pri);
-    if (mgr->listening_sstream_id == OS_NET_SECURE_STREAM_ID_INVALID) {
+    if (mgr->listening_sstream_id == 0) {
         client_manager_deinit(mgr);
         return false;
     }

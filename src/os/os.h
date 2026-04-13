@@ -82,13 +82,11 @@ i32         os_window_get_h(OSWindow *window);
 typedef enum {
     OS_NET_SECURE_STREAM_ERROR,
     OS_NET_SECURE_STREAM_DISCONNECTED,
-
     OS_NET_SECURE_STREAM_CONNECTED,
     OS_NET_SECURE_STREAM_HANDSHAKING,
 } OSNetSecureStreamStatus;
 
-typedef u32 OSNetSecureStreamId;
-#define OS_NET_SECURE_STREAM_ID_INVALID U32_MAX
+typedef u32 OSNetSecureStreamId; // 0 means invalid id
 
 void os_net_secure_streams_init(Arena *arena, size_t max_count);
 
